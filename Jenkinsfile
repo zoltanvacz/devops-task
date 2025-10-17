@@ -20,7 +20,9 @@ pipeline {
         }
         stage('Test') {
             steps {
-                echo 'Testing...'
+                script {
+                    testDockerImage(config)
+                }
             }
         }
         stage('Deploy') {
@@ -61,4 +63,30 @@ def deployToK8s(config) {
     echo "[INFO] Deploying to Minikube cluster..."
 
     sh "helm upgrade --install helloapp charts -f charts/values.yaml --set image.repository=${repository}/${imageName} --set image.tag=${tag}"
+}
+
+def testDockerImage(config) {
+    def imageName = config.pipeline.image.name
+    def repository = config.pipeline.image.repository
+    def tag = currentBuild.displayName
+    //def containerName = config.pipeline.app.name
+    def containerName = "test-container"
+
+    echo "[INFO] Testing Docker image: ${repository}/${imageName}:${tag}"
+
+    sh "docker run -d --name ${containerName} ${repository}/${imageName}:${tag} -c ./test.sh"
+    sh "docker wait test-container"
+    def testResult = sh(script: "docker logs ${containerName} 2>&1", returnStdout: true).trim()
+    sh "docker rm -f ${containerName}"
+
+    validateTestResult(testResult)
+}
+
+def validateTestResult(testResult) {
+    if (!testResult.contains("OK")) {
+        echo "[ERROR] Test output:\n${testResult}"
+        error "[ERROR] Tests failed."
+    } else {
+        echo "[INFO] Tests passed."
+    }
 }
