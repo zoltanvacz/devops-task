@@ -26,12 +26,7 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    echo '[INFO] Deploying to Minikube cluster...'
-                    def repository = config.pipeline.image.repository
-                    def imageName = config.pipeline.image.name
-                    def tag = "1.2.3"
-
-                    sh "helm upgrade --install helloapp charts -f charts/values.yaml --set image.repository=${repository}/${imageName} --set image.tag=${tag}"
+                    deployToK8s(config)
                 }
             }
         }
@@ -56,4 +51,14 @@ def buildDockerImageAndPush(config) {
 def generateTag() {
     def commitID = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
     return "v-${env.BUILD_NUMBER}-${commitID}"
+}
+
+def deployToK8s(config) {
+    def imageName = config.pipeline.image.name
+    def repository = config.pipeline.image.repository
+    def tag = currentBuild.displayName
+
+    echo "[INFO] Deploying to Minikube cluster..."
+
+    sh "helm upgrade --install helloapp charts -f charts/values.yaml --set image.repository=${repository}/${imageName} --set image.tag=${tag}"
 }
