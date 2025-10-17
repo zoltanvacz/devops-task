@@ -33,7 +33,7 @@ pipeline {
                     def imageName = config.pipeline.image.name
                     def tag = "1.2.3"
 
-                    sh "helm upgrade --install helloapp charts -f charts/values.yaml --set image.repository=${repository} --set image.name=${imageName} --set image.tag=${tag}"
+                    sh "helm upgrade --install helloapp charts -f charts/values.yaml --set image.repository=${repository}/${imageName} --set image.tag=${tag}"
                 }
             }
         }
