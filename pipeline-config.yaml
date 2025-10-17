@@ -1,0 +1,4 @@
+pipeline:
+  image:
+    name: helloapp
+    repository: zoltanvacz
