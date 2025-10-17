@@ -1,0 +1,10 @@
+replicaCount: 1
+image:
+  repository: helloapp
+  tag: latest
+  pullPolicy: IfNotPresent
+service:
+  type: NodePort
+  port: 80
+containerPort: 8080
+namespace: default

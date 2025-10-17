@@ -1,0 +1,5 @@
+apiVersion: v2
+name: helloapp
+description: Formlabs homework - zoltanvacz
+version: 0.1.0
+appVersion: "1.0"
