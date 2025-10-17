@@ -3,20 +3,18 @@ def config = [:]
 pipeline {
     agent any
     stages {
+        stage('Prepare') {
+            steps {
+                script {
+                    config = readYaml file: 'pipeline-config.yaml'
+                    currentBuild.displayName = generateTag()
+                }
+            }
+        }
         stage('Build') {
             steps {
                 script {
-                    echo '[INFO] Building the docker image...'
-                    config = readYaml file: 'pipeline-config.yaml'
-                    def imageName = config.pipeline.image.name
-                    def repository = config.pipeline.image.repository
-                    def tag = "1.2.3"
-
-                    withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-                        sh "docker build -t ${repository}/${imageName}:${tag} ."
-                        sh 'docker login -u $DOCKER_USER -p $DOCKER_PASS'
-                        sh "docker push ${repository}/${imageName}:${tag}"
-                    }
+                    buildDockerImageAndPush(config)
                 } 
             }
         }
@@ -40,3 +38,22 @@ pipeline {
     }
 }
 
+//Methods
+def buildDockerImageAndPush(config) {
+    def imageName = config.pipeline.image.name
+    def repository = config.pipeline.image.repository
+    def tag = currentBuild.displayName
+
+    echo "[INFO] Building Docker image: ${repository}/${imageName}:${tag}"
+
+    withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+        sh "docker build -t ${repository}/${imageName}:${tag} ."
+        sh 'docker login -u $DOCKER_USER -p $DOCKER_PASS'
+        sh "docker push ${repository}/${imageName}:${tag}"
+    }
+}
+
+def generateTag() {
+    def commitID = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+    return "v-${env.BUILD_NUMBER}-${commitID}"
+}
