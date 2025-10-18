@@ -97,9 +97,9 @@ def validateTestResult(testResult) {
         echo "[INFO] Tests passed."
     }
 }
-
+ß
 def printHelmTemplate(config) {
-    def appName = config.app.name
+    def appName = config.pipeline.app.name
     def repository = config.pipeline.image.repository
     def tag = currentBuild.displayName
     def env = params.ENV
