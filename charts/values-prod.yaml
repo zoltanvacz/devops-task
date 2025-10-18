@@ -1,0 +1,2 @@
+namespace: helloapp-prod
+replicaCount: 3

@@ -2,6 +2,9 @@ def config = [:]
 
 pipeline {
     agent any
+    parameters {
+        choice(name: 'ENV', values: ['dev','prod'], description: 'Select environment to deploy to')
+    }
     stages {
         stage('Prepare') {
             steps {
@@ -59,23 +62,24 @@ def deployToK8s(config) {
     def imageName = config.pipeline.image.name
     def repository = config.pipeline.image.repository
     def tag = currentBuild.displayName
+    def env = params.ENV
+    def valuesFile = "charts/values-${env}.yaml"
 
     echo "[INFO] Deploying to Minikube cluster..."
 
-    sh "helm upgrade --install helloapp charts -f charts/values.yaml --set image.repository=${repository}/${imageName} --set image.tag=${tag}"
+    sh "helm upgrade --install helloapp charts -f charts/values.yaml -f ${valuesFile} --namespace ${params.ENV} --create-namespace --set image.repository=${repository}/${imageName} --set image.tag=${tag}"
 }
 
 def testDockerImage(config) {
     def imageName = config.pipeline.image.name
     def repository = config.pipeline.image.repository
     def tag = currentBuild.displayName
-    //def containerName = config.pipeline.app.name
     def containerName = "test-container"
 
     echo "[INFO] Testing Docker image: ${repository}/${imageName}:${tag}"
 
     sh "docker run -d --name ${containerName} ${repository}/${imageName}:${tag} -c ./test.sh"
-    sh "docker wait test-container"
+    sh "docker wait ${containerName}"
     def testResult = sh(script: "docker logs ${containerName} 2>&1", returnStdout: true).trim()
     sh "docker rm -f ${containerName}"
 
