@@ -3,7 +3,7 @@ def config = [:]
 pipeline {
     agent any
     parameters {
-        choice(name: 'ENV', values: ['dev','prod'], description: 'Select environment to deploy to')
+        choice(name: 'ENV', choices: ['dev','prod'], description: 'Select environment to deploy to')
     }
     stages {
         stage('Prepare') {
@@ -64,10 +64,11 @@ def deployToK8s(config) {
     def tag = currentBuild.displayName
     def env = params.ENV
     def valuesFile = "charts/values-${env}.yaml"
+    def namespace = readYaml(file: valuesFile).namespace 
 
     echo "[INFO] Deploying to Minikube cluster..."
 
-    sh "helm upgrade --install helloapp charts -f charts/values.yaml -f ${valuesFile} --namespace ${params.ENV} --create-namespace --set image.repository=${repository}/${imageName} --set image.tag=${tag}"
+    sh "helm upgrade --install helloapp charts -f charts/values.yaml -f ${valuesFile} --namespace ${namespace} --create-namespace --set image.repository=${repository}/${imageName} --set image.tag=${tag}"
 }
 
 def testDockerImage(config) {
