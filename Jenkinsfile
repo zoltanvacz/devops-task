@@ -59,6 +59,7 @@ def generateTag() {
 }
 
 def deployToK8s(config) {
+    def appName = config.pipeline.app.name
     def imageName = config.pipeline.image.name
     def repository = config.pipeline.image.repository
     def tag = currentBuild.displayName
@@ -66,11 +67,9 @@ def deployToK8s(config) {
     def valuesFile = "charts/values-${env}.yaml"
     def namespace = readYaml(file: valuesFile).namespace 
 
+    printHelmTemplate(appName, valuesFile, namespace)
     echo "[INFO] Deploying to Minikube cluster..."
-
-    printHelmTemplate(config)
-
-    sh "helm upgrade --install helloapp charts -f charts/values.yaml -f ${valuesFile} --namespace ${namespace} --create-namespace --set image.repository=${repository}/${imageName} --set image.tag=${tag}"
+    helmUpgrade(appName, valuesFile, namespace, repository, imageName, tag)
 }
 
 def testDockerImage(config) {
@@ -97,16 +96,12 @@ def validateTestResult(testResult) {
         echo "[INFO] Tests passed."
     }
 }
-ß
-def printHelmTemplate(config) {
-    def appName = config.pipeline.app.name
-    def repository = config.pipeline.image.repository
-    def tag = currentBuild.displayName
-    def env = params.ENV
-    def valuesFile = "charts/values-${env}.yaml"
-    def namespace = readYaml(file: valuesFile).namespace
 
+def printHelmTemplate(appName, valuesFile, namespace) {
     echo "[INFO] Printing Helm template for review..."
-
     sh "helm template ${appName} ./charts -f charts/values.yaml -f ${valuesFile} --namespace ${namespace}"
+}
+
+def helmUpgrade(appName, valuesFile, namespace, repository, imageName, tag) {
+    sh "helm upgrade --install ${appName} ./charts -f charts/values.yaml -f ${valuesFile} --namespace ${namespace} --create-namespace --set image.repository=${repository}/${imageName} --set image.tag=${tag}"
 }
