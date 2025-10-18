@@ -59,9 +59,13 @@ def buildDockerImageAndPush(config) {
     echo "[INFO] Building Docker image: ${repository}/${imageName}:${tag}"
 
     withCredentials([usernamePassword(credentialsId: 'docker', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
-        sh "docker build -t ${repository}/${imageName}:${tag} ."
-        sh 'docker login -u $DOCKER_USER -p $DOCKER_PASS'
-        sh "docker push ${repository}/${imageName}:${tag}"
+        try {
+            sh "docker build -t ${repository}/${imageName}:${tag} ."
+            sh 'docker login -u $DOCKER_USER -p $DOCKER_PASS'
+            sh "docker push ${repository}/${imageName}:${tag}"
+        } catch (err) {
+            echo "[ERROR] Docker build or push failed: ${err}"
+        }
     }
 }
 
@@ -87,10 +91,14 @@ def testDockerImage(config) {
 
     echo "[INFO] Testing Docker image: ${repository}/${imageName}:${tag}"
 
-    sh "docker run -d --name ${containerName} ${repository}/${imageName}:${tag} -c ./test.sh"
-    sh "docker wait ${containerName}"
-    def testResult = sh(script: "docker logs ${containerName} 2>&1", returnStdout: true).trim()
-    sh "docker rm -f ${containerName}"
+    try {
+        sh "docker run -d --name ${containerName} ${repository}/${imageName}:${tag} -c ./test.sh"
+        sh "docker wait ${containerName}"
+        def testResult = sh(script: "docker logs ${containerName} 2>&1", returnStdout: true).trim()
+        sh "docker rm -f ${containerName}"
+    } catch (err) {
+        error "[ERROR] Docker test run failed: ${err}"
+    }
 
     validateTestResult(testResult)
 }
@@ -107,11 +115,19 @@ def validateTestResult(testResult) {
 
 def printHelmTemplate(appName, valuesFile, namespace) {
     echo "[INFO] Printing Helm template for review..."
-    sh "helm template ${appName} ./charts -f charts/values.yaml -f ${valuesFile} --namespace ${namespace}"
+    try {
+        sh "helm template ${appName} ./charts -f charts/values.yaml -f ${valuesFile} --namespace ${namespace}"
+    } catch (err) {
+        error "[ERROR] Helm template generation failed: ${err}"
+    }
 }
 
 def helmUpgrade(appName, valuesFile, namespace, repository, imageName, tag) {
-    sh "helm upgrade --install ${appName} ./charts -f charts/values.yaml -f ${valuesFile} --namespace ${namespace} --create-namespace --set image.repository=${repository}/${imageName} --set image.tag=${tag}"
+    try {
+        sh "helm upgrade --install ${appName} ./charts -f charts/values.yaml -f ${valuesFile} --namespace ${namespace} --create-namespace --set image.repository=${repository}/${imageName} --set image.tag=${tag}"
+    } catch (err) {
+        error "[ERROR] Helm upgrade/install failed: ${err}"
+    }
 }
 
 def generateTag() {
@@ -122,7 +138,7 @@ def generateTag() {
 def printConfig(config) {
     def configOut = ''
     configOut += "[INFO] Deployment Configuration:\n"
-    configOut += "==================================================="
+    configOut += "===================================================\n"
     config.each { key, value ->
         configOut += "${key}: ${value}\n"
     }
