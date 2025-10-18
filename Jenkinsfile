@@ -68,6 +68,8 @@ def deployToK8s(config) {
 
     echo "[INFO] Deploying to Minikube cluster..."
 
+    printHelmTemplate(config)
+
     sh "helm upgrade --install helloapp charts -f charts/values.yaml -f ${valuesFile} --namespace ${namespace} --create-namespace --set image.repository=${repository}/${imageName} --set image.tag=${tag}"
 }
 
@@ -94,4 +96,17 @@ def validateTestResult(testResult) {
     } else {
         echo "[INFO] Tests passed."
     }
+}
+
+def printHelmTemplate(config) {
+    def appName = config.app.name
+    def repository = config.pipeline.image.repository
+    def tag = currentBuild.displayName
+    def env = params.ENV
+    def valuesFile = "charts/values-${env}.yaml"
+    def namespace = readYaml(file: valuesFile).namespace
+
+    echo "[INFO] Printing Helm template for review..."
+
+    sh "helm template ${appName} ./charts -f charts/values.yaml -f ${valuesFile} --namespace ${namespace}"
 }
