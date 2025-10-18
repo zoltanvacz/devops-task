@@ -90,11 +90,12 @@ def testDockerImage(config) {
     def containerName = "test-container"
 
     echo "[INFO] Testing Docker image: ${repository}/${imageName}:${tag}"
+    def testResult = ""
 
     try {
         sh "docker run -d --name ${containerName} ${repository}/${imageName}:${tag} -c ./test.sh"
         sh "docker wait ${containerName}"
-        def testResult = sh(script: "docker logs ${containerName} 2>&1", returnStdout: true).trim()
+        testResult = sh(script: "docker logs ${containerName} 2>&1", returnStdout: true).trim()
         sh "docker rm -f ${containerName}"
     } catch (err) {
         error "[ERROR] Docker test run failed: ${err}"
