@@ -1,4 +1,4 @@
-def config = [:]
+def config      = [:]
 
 pipeline {
     agent any
@@ -9,8 +9,8 @@ pipeline {
         stage('Prepare') {
             steps {
                 script {
-                    config = readYaml file: 'pipeline-config.yaml'
-                    currentBuild.displayName = generateTag()
+                    config = generateConfig(config)
+                    printConfig(config)
                 }
             }
         }
@@ -38,11 +38,23 @@ pipeline {
     }
 }
 
-//Methods
+//Main Methods
+def generateConfig(config) {
+    def configFile              = readYaml file: 'pipeline-config.yaml'
+    currentBuild.displayName    = generateTag()
+    config.tag                  = currentBuild.displayName
+    config.appName              = configFile.pipeline.app.name
+    config.imageName            = configFile.pipeline.image.name
+    config.repository           = configFile.pipeline.image.repository
+    config.env                  = params.ENV
+
+    return config
+}
+
 def buildDockerImageAndPush(config) {
-    def imageName = config.pipeline.image.name
-    def repository = config.pipeline.image.repository
-    def tag = currentBuild.displayName
+    def imageName = config.imageName
+    def repository = config.repository
+    def tag = config.tag
 
     echo "[INFO] Building Docker image: ${repository}/${imageName}:${tag}"
 
@@ -53,17 +65,12 @@ def buildDockerImageAndPush(config) {
     }
 }
 
-def generateTag() {
-    def commitID = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
-    return "v-${env.BUILD_NUMBER}-${commitID}"
-}
-
 def deployToK8s(config) {
-    def appName = config.pipeline.app.name
-    def imageName = config.pipeline.image.name
-    def repository = config.pipeline.image.repository
-    def tag = currentBuild.displayName
-    def env = params.ENV
+    def appName = config.appName
+    def imageName = config.imageName
+    def repository = config.repository
+    def tag = config.tag
+    def env = config.env
     def valuesFile = "charts/values-${env}.yaml"
     def namespace = readYaml(file: valuesFile).namespace 
 
@@ -73,9 +80,9 @@ def deployToK8s(config) {
 }
 
 def testDockerImage(config) {
-    def imageName = config.pipeline.image.name
-    def repository = config.pipeline.image.repository
-    def tag = currentBuild.displayName
+    def imageName = config.imageName
+    def repository = config.repository
+    def tag = config.tag
     def containerName = "test-container"
 
     echo "[INFO] Testing Docker image: ${repository}/${imageName}:${tag}"
@@ -88,6 +95,7 @@ def testDockerImage(config) {
     validateTestResult(testResult)
 }
 
+//Helper methods
 def validateTestResult(testResult) {
     if (!testResult.contains("OK")) {
         echo "[ERROR] Test output:\n${testResult}"
@@ -104,4 +112,21 @@ def printHelmTemplate(appName, valuesFile, namespace) {
 
 def helmUpgrade(appName, valuesFile, namespace, repository, imageName, tag) {
     sh "helm upgrade --install ${appName} ./charts -f charts/values.yaml -f ${valuesFile} --namespace ${namespace} --create-namespace --set image.repository=${repository}/${imageName} --set image.tag=${tag}"
+}
+
+def generateTag() {
+    def commitID = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+    return "v-${env.BUILD_NUMBER}-${commitID}"
+}
+
+def printConfig(config) {
+    def configOut = ''
+    configOut += "[INFO] Deployment Configuration:\n"
+    configOut += "==================================================="
+    config.each { key, value ->
+        configOut += "${key}: ${value}\n"
+    }
+    configOut += "==================================================="
+
+    echo configOut
 }
