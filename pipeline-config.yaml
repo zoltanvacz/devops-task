@@ -2,3 +2,5 @@ pipeline:
   image:
     name: helloapp
     repository: zoltanvacz
+  app:
+    name: helloapp
