@@ -3,7 +3,7 @@ def config = [:]
 pipeline {
     agent any
     parameters {
-        choice(name: 'ENV', values: ['dev','prod'], description: 'Select environment to deploy to')
+        choice(name: 'ENV', choices: ['dev','prod'], description: 'Select environment to deploy to')
     }
     stages {
         stage('Prepare') {
