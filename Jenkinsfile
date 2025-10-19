@@ -1,4 +1,4 @@
-def config      = [:]
+def config = [:]
 
 pipeline {
     agent any
@@ -39,6 +39,7 @@ pipeline {
 }
 
 //Main Methods
+//Generate configuration based on pipeline-config YAML file and parameters
 def generateConfig(config) {
     def configFile              = readYaml file: 'pipeline-config.yaml'
     currentBuild.displayName    = generateTag()
@@ -51,6 +52,8 @@ def generateConfig(config) {
     return config
 }
 
+//Build a docker image and push it to the repository
+//For this I have used my own Docker Hub credentials stored in Jenkins credentials
 def buildDockerImageAndPush(config) {
     def imageName = config.imageName
     def repository = config.repository
@@ -69,6 +72,7 @@ def buildDockerImageAndPush(config) {
     }
 }
 
+//Deploy to Minikube cluster using Helm
 def deployToK8s(config) {
     def appName = config.appName
     def imageName = config.imageName
@@ -83,6 +87,8 @@ def deployToK8s(config) {
     helmUpgrade(appName, valuesFile, namespace, repository, imageName, tag)
 }
 
+//Test the docker image by running the container with the provided test.sh script
+//In case of failure abort the build
 def testDockerImage(config) {
     def imageName = config.imageName
     def repository = config.repository
@@ -131,6 +137,8 @@ def helmUpgrade(appName, valuesFile, namespace, repository, imageName, tag) {
     }
 }
 
+//Generate a unique tag for the build
+//The image and the Jenkins build will use the same tag for better traceability
 def generateTag() {
     def commitID = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
     return "v-${env.BUILD_NUMBER}-${commitID}"
